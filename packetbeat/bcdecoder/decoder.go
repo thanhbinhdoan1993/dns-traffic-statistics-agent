@@ -67,7 +67,7 @@ type Decoder struct {
 	flowID              *flows.FlowID // buffer flowID among many calls
 	flowIDBufferBacking [flows.SizeFlowIDMax]byte
 
-	ipv4Defragmenter ip4defrag.IPv4Defragmenter
+	ipv4Defragmenter *ip4defrag.IPv4Defragmenter
 }
 
 const (
@@ -193,8 +193,8 @@ func (d *Decoder) decode(data []byte, ci *gopacket.CaptureInfo) {
 		}
 
 		if currentType == layers.LayerTypeIPv4 {
-			ip4 := &d.ip4[d.stIP4.i]
-			out, err := d.ipv4Defragmenter.DefragIPv4(ip4)
+			ip4 := d.ip4[d.stIP4.i]
+			out, err := d.ipv4Defragmenter.DefragIPv4(&ip4)
 			if err != nil {
 				logp.Info("packet fragment decode failed with: %v", err)
 				break
@@ -203,7 +203,7 @@ func (d *Decoder) decode(data []byte, ci *gopacket.CaptureInfo) {
 			if out == nil { // defragment not done yet
 				break
 			}
-			d.ip4[d.stIP4.i] = out
+			d.ip4[d.stIP4.i] = *out
 			current = out // TODO: remove ????
 		}
 

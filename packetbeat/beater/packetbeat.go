@@ -284,23 +284,18 @@ func (pb *packetbeat) createWorker(dl layers.LinkType) (sniffer.Worker, error) {
 		return nil, err
 	}
 
-	type workerNewFunc func(
-		f *flows.Flows,
-		datalink layers.LinkType,
-		icmp4 icmp.ICMPv4Processor,
-		icmp6 icmp.ICMPv6Processor,
-		tcp tcp.Processor,
-		udp udp.Processor,
-	) (*Decoder, error)
+	var worker sniffer.Worker
 
-	newFunc := decoder.New
-	if pb.config.useBCDecoder {
-		newFunc = bcdecoder.New
-	}
-
-	worker, err := newFunc(pb.flows, dl, icmp4, icmp6, tcp, udp)
-	if err != nil {
-		return nil, err
+	if pb.config.UseBCDecoder {
+		worker, err = bcdecoder.New(pb.flows, dl, icmp4, icmp6, tcp, udp)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		worker, err = decoder.New(pb.flows, dl, icmp4, icmp6, tcp, udp)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return worker, nil
