@@ -102,6 +102,11 @@ packetbeat.protocols:
 #   # the TLS protocol by commenting out the list of ports.
 #   ports: [443]
 
+#==================== Enable BC Decoder =======================================
+# Configure whether using a custom decoder that supports defragment packet or 
+# using a default decoder of packetbeat. 
+packetbeat.use_bc_decoder: true
+
 #==================== Elasticsearch template setting ==========================
 
 setup.template.settings:

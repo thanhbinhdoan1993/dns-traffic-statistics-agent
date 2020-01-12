@@ -480,6 +480,11 @@ packetbeat.protocols:
 # to remove duplicates if shippers are installed on multiple servers.
 #packetbeat.ignore_outgoing: true
 
+#==================== Enable BC Decoder =======================================
+# Configure whether using a custom decoder that supports defragment packet or 
+# using a default decoder of packetbeat. 
+#packetbeat.use_bc_decoder: true
+
 #================================ General ======================================
 
 # The name of the shipper that publishes the network data. It can be used to group

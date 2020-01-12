@@ -36,6 +36,7 @@ type Config struct {
 
 	// [Bluecat]
 	DropSniffedPacket bool `config:"drop_sniffed_packet"`
+	UseBCDecoder      bool `config:"use_bc_decoder"`
 }
 
 type InterfacesConfig struct {

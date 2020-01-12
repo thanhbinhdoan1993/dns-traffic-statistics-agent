@@ -32,6 +32,7 @@ import (
 	"github.com/elastic/beats/libbeat/processors"
 	"github.com/elastic/beats/libbeat/service"
 
+	"github.com/elastic/beats/packetbeat/bcdecoder"
 	"github.com/elastic/beats/packetbeat/config"
 	"github.com/elastic/beats/packetbeat/decoder"
 	"github.com/elastic/beats/packetbeat/flows"
@@ -100,6 +101,7 @@ func New(b *beat.Beat, rawConfig *common.Config) (beat.Beater, error) {
 		config:      config,
 		cmdLineArgs: cmdLineArgs,
 	}
+	logp.Info("packetbeat config: %+v", config)
 	err = pb.init(b)
 	if err != nil {
 		return nil, err
@@ -282,7 +284,21 @@ func (pb *packetbeat) createWorker(dl layers.LinkType) (sniffer.Worker, error) {
 		return nil, err
 	}
 
-	worker, err := decoder.New(pb.flows, dl, icmp4, icmp6, tcp, udp)
+	type workerNewFunc func(
+		f *flows.Flows,
+		datalink layers.LinkType,
+		icmp4 icmp.ICMPv4Processor,
+		icmp6 icmp.ICMPv6Processor,
+		tcp tcp.Processor,
+		udp udp.Processor,
+	) (*Decoder, error)
+
+	newFunc := decoder.New
+	if pb.config.useBCDecoder {
+		newFunc = bcdecoder.New
+	}
+
+	worker, err := newFunc(pb.flows, dl, icmp4, icmp6, tcp, udp)
 	if err != nil {
 		return nil, err
 	}
