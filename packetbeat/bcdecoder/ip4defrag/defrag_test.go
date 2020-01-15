@@ -110,7 +110,7 @@ func TestDefragBCDNS(t *testing.T) {
 	ip := gentestDefrag(t, defrag, testBCDNSFrag2, true, "BCDNSFrag2")
 
 	if len(ip.Payload) != 1527 {
-		t.Fatalf("defrag: expecting a packet of 4508 bytes, got %d", len(ip.Payload))
+		t.Fatalf("defrag: expecting a packet of 1527 bytes, got %d", len(ip.Payload))
 	}
 
 	validPayload := append(testBCDNSFrag1[34:], testBCDNSFrag2[34:]...)
