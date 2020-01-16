@@ -207,9 +207,7 @@ func (d *Decoder) decode(data []byte, ci *gopacket.CaptureInfo) {
 			}
 			d.ip4[d.stIP4.i] = *out
 			current = out // TODO: remove ????
-		}
-
-		if currentType == layers.LayerTypeIPv6Fragment {
+		} else if currentType == layers.LayerTypeIPv6 {
 			ip6 := d.ip6[d.stIP6.i]
 			out, err := d.ipv6Defragmenter.DefragIPv6(&ip6)
 			if err != nil {
