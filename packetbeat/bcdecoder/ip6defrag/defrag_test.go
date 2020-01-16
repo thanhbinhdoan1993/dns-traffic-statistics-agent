@@ -10,22 +10,65 @@ import (
 	"github.com/tsg/gopacket/layers"
 )
 
+func BenchmarkDefrag(b *testing.B) {
+	defrag := NewIPv6Defragmenter()
+	for i := 0; i < b.N; i++ {
+		gentestBench(b, defrag, testBCDNSFrag1)
+		gentestBench(b, defrag, testBCDNSFrag2)
+	}
+}
+
+func gentestBench(b *testing.B, defrag *IPv6Defragmenter, buf []byte) {
+	p := gopacket.NewPacket(buf, layers.LinkTypeEthernet, gopacket.Default)
+	if p.ErrorLayer() != nil {
+		b.Error("Failed to decode packet:", p.ErrorLayer().Error())
+	}
+
+	ipL := p.Layer(layers.LayerTypeIPv6)
+	if ipL == nil {
+		b.Fatal("Failed to get ipv6 from layers")
+	}
+	ip, _ := ipL.(*layers.IPv6)
+
+	_, err := defrag.DefragIPv6(ip)
+	if err != nil {
+		b.Fatalf("defrag: %s", err)
+	}
+}
+
 func TestDefragBCDNS(t *testing.T) {
 	defrag := NewIPv6Defragmenter()
 
-	gentestDefrag(t, defrag, testBCDNSFrag1, false, "BCDNSDontFrag")
-	defragmentedPacket := gentestDefrag(t, defrag, testBCDNSFrag2, true, "BCDNSDontFrag")
+	gentestDefrag(t, defrag, testBCDNSFrag1, false, "BCDNSFrag1")
+	ip := gentestDefrag(t, defrag, testBCDNSFrag2, true, "BCDNSFrag2")
 
-	v6Layer := defragmentedPacket.Layer(layers.LayerTypeIPv6)
-	ipv6 := v6Layer.(*layers.IPv6)
-	if len(ipv6.Payload) != 67 {
-		t.Fatalf("defrag: expecting a packet of 67 bytes, got %d", len(ipv6.Payload))
+	if len(ip.Payload) != 1499 {
+		t.Fatalf("defrag: expecting a packet of 1499 bytes, got %d", len(ip.Payload))
 	}
 
-	validPayload := testBCDNSDontFrag[54:]
-	if bytes.Compare(validPayload, ipv6.Payload) != 0 {
+	validPayload := append(testBCDNSFrag1[54+8:], testBCDNSFrag2[54+8:]...)
+	if bytes.Compare(validPayload, ip.Payload) != 0 {
 		fmt.Println(bytediff.BashOutput.String(
-			bytediff.Diff(validPayload, ipv6.Payload)))
+			bytediff.Diff(validPayload, ip.Payload)))
+		t.Errorf("defrag: payload is not correctly defragmented")
+	}
+}
+
+func TestDefragBCDNSOutOfOrder(t *testing.T) {
+	defrag := NewIPv6Defragmenter()
+
+	// packet 2 comes first
+	gentestDefrag(t, defrag, testBCDNSFrag2, false, "BCDNSFrag2")
+	ip := gentestDefrag(t, defrag, testBCDNSFrag1, true, "BCDNSFrag1")
+
+	if len(ip.Payload) != 1499 {
+		t.Fatalf("defrag: expecting a packet of 1499 bytes, got %d", len(ip.Payload))
+	}
+
+	validPayload := append(testBCDNSFrag1[54+8:], testBCDNSFrag2[54+8:]...)
+	if bytes.Compare(validPayload, ip.Payload) != 0 {
+		fmt.Println(bytediff.BashOutput.String(
+			bytediff.Diff(validPayload, ip.Payload)))
 		t.Errorf("defrag: payload is not correctly defragmented")
 	}
 }
@@ -33,31 +76,33 @@ func TestDefragBCDNS(t *testing.T) {
 func TestDontFragBCDNS(t *testing.T) {
 	defrag := NewIPv6Defragmenter()
 
-	defragmentedPacket := gentestDefrag(t, defrag, testBCDNSDontFrag, true, "BCDNSDontFrag")
+	ip := gentestDefrag(t, defrag, testBCDNSDontFrag, true, "BCDNSDontFrag")
 
-	v6Layer := defragmentedPacket.Layer(layers.LayerTypeIPv6)
-	ipv6 := v6Layer.(*layers.IPv6)
-	if len(ipv6.Payload) != 67 {
-		t.Fatalf("defrag: expecting a packet of 67 bytes, got %d", len(ipv6.Payload))
+	if len(ip.Payload) != 67 {
+		t.Fatalf("defrag: expecting a packet of 67 bytes, got %d", len(ip.Payload))
 	}
 
 	validPayload := testBCDNSDontFrag[54:]
-	if bytes.Compare(validPayload, ipv6.Payload) != 0 {
+	if bytes.Compare(validPayload, ip.Payload) != 0 {
 		fmt.Println(bytediff.BashOutput.String(
-			bytediff.Diff(validPayload, ipv6.Payload)))
+			bytediff.Diff(validPayload, ip.Payload)))
 		t.Errorf("defrag: payload is not correctly defragmented")
 	}
 }
 
-func gentestDefrag(t *testing.T, defrag *IPv6Defragmenter, buf []byte, expect bool, label string) gopacket.Packet {
+func gentestDefrag(t *testing.T, defrag *IPv6Defragmenter, buf []byte, expect bool, label string) *layers.IPv6 {
 	p := gopacket.NewPacket(buf, layers.LinkTypeEthernet, gopacket.Default)
 	if p.ErrorLayer() != nil {
 		t.Error("Failed to decode packet:", p.ErrorLayer().Error())
 	}
-	// ipL := p.Layer(layers.LayerTypeIPv4)
-	// in, _ := ipL.(*layers.IPv4)
 
-	out, err := defrag.DefragIPv6(p)
+	ipL := p.Layer(layers.LayerTypeIPv6)
+	if ipL == nil {
+		t.Fatal("Failed to get ipv6 from layers")
+	}
+	ip, _ := ipL.(*layers.IPv6)
+
+	out, err := defrag.DefragIPv6(ip)
 	if err != nil {
 		t.Fatalf("defrag: %s", err)
 	}
